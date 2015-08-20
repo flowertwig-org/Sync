@@ -275,6 +275,41 @@ namespace BackupMedia
                 // If we don't have permission or simular to file we will just ignore it...
             }
         }
+        private void UpdateHashFile(string fileHash, string fileName, string directory, SortedList<string, string> previouslyHashedFiles)
+        {
+            var sb = new StringBuilder();
+            var tmpList = new SortedList<string, string>();
+
+            foreach (var item in previouslyHashedFiles)
+            {
+                var name = item.Key;
+                var hash = item.Value;
+                if (!tmpList.ContainsKey(hash))
+                {
+                    tmpList.Add(hash, directory + name);
+                }
+            }
+
+            tmpList.Add(fileHash, fileName);
+
+            foreach (var item in tmpList)
+            {
+                var fileInfo = new FileInfo(item.Value);
+                // <hash>#<filename>
+                sb.AppendLine(item.Key + "#" + fileInfo.Name);
+            }
+
+            var hashFileName = directory + "hashes.txt";
+            try
+            {
+                File.WriteAllText(hashFileName, sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                exception = ex;
+                // If we don't have permission or simular to file we will just ignore it...
+            }
+        }
 
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -360,6 +395,20 @@ namespace BackupMedia
                         result.Add(target, target);
 
                         fi.CopyTo(target);
+
+                        var previouslyHashedFiles = GetHashedFiles(directory2);
+
+                        var matchPair = infoList1.FirstOrDefault(x => x.Value == fi.FullName);
+                        if (!string.IsNullOrEmpty(matchPair.Key))
+                        {
+                            UpdateHashFile(matchPair.Key, fi.FullName, directory2 + Path.DirectorySeparatorChar, previouslyHashedFiles);
+                        }
+                        else
+                        {
+                            var error = new Exception(string.Format("Match pair error: {0}, {1}", matchPair.ToString(), fi.FullName));
+                            exception = error;
+                            throw exception;
+                        }
                     }
 
                     backgroundWorker2.ReportProgress(index);
